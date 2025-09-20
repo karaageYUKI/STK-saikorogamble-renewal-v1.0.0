@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STK-saikorogamble-renewal ver1.0.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .title-text {
+            color: #22c55e;
+            text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+
+        .fade-in {
+            animation: fadeIn 1s forwards;
+        }
+
+        .fade-out {
+            animation: fadeOut 1s forwards;
+        }
+
+        .dark-screen {
+            background-color: #000;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* ルーレットのスタイル */
+        .roulette-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            margin: auto;
+        }
+
+        .roulette-wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 10px solid #22c55e;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .roulette-needle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            z-index: 10;
+        }
+
+        .roulette-number {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: 50% 50%;
+        }
+
+        .roulette-number span {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .player-list-container {
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-black text-white flex items-center justify-center min-h-screen">
+    <div id="loadingScreen" class="dark-screen flex items-center justify-center z-50">
+        <h1 class="text-3xl text-green-500 font-bold">STK-saikorogamble-renewal ver1.0.0</h1>
+    </div>
+
+    <!-- ホーム画面 -->
+    <div id="homeScreen" class="w-full h-full flex flex-col items-center justify-center p-4">
+        <h1 class="text-4xl md:text-6xl font-bold title-text mb-8 text-center">STK-saikorogamble-renewal ver1.0.0</h1>
+        <div class="space-y-4 w-full max-w-sm">
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <h2 class="text-xl font-bold mb-2">対戦モード選択</h2>
+                <div class="flex space-x-4 mb-4">
+                    <button id="cpuModeBtn" class="bg-gray-700 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">CPUと対戦</button>
+                    <button id="playerModeBtn" class="bg-gray-700 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">プレイヤー同士で対戦</button>
+                </div>
+
+                <div id="cpuOptions" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">CPU人数 (2~100人)</label>
+                        <input type="number" id="cpuCount" min="2" max="100" value="2" class="w-full bg-gray-900 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                </div>
+
+                <div id="playerOptions" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">プレイヤー人数 (2~25人)</label>
+                        <input type="number" id="playerCount" min="2" max="25" value="2" class="w-full bg-gray-900 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div id="playerNameInputs" class="space-y-2">
+                        <!-- 名前入力欄がここに追加される -->
+                    </div>
+                </div>
+
+                <div class="space-y-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">初期所持金 (¥10,000 ~ ¥1兆)</label>
+                        <input type="number" id="initialMoney" min="10000" max="1000000000000" value="100000" class="w-full bg-gray-900 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">最低賭け金</label>
+                        <input type="number" id="minBet" min="1" value="100" class="w-full bg-gray-900 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                </div>
+            </div>
+            <button id="startButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-colors">START</button>
+            <p id="errorMessage" class="text-red-500 text-center hidden"></p>
+        </div>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="gameScreen" class="hidden w-full h-full flex flex-col md:flex-row p-4" style="opacity: 0;">
+        <!-- 上部ヘッダー -->
+        <div class="absolute top-0 left-0 right-0 bg-black bg-opacity-70 p-4 flex items-center justify-between z-10">
+            <button id="backButton" class="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">戻る</button>
+            <div class="flex space-x-6 text-sm md:text-base">
+                <span id="rouletteCount">ルーレット回数: 0</span>
+                <span id="leaderName">リーダー: -</span>
+                <span id="gameTimer">時間: 00:00</span>
+            </div>
+        </div>
+
+        <!-- 左側のルーレットとプレイヤー情報 -->
+        <div class="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
+            <div class="roulette-container mb-8">
+                <div class="roulette-wheel">
+                    <div id="rouletteNeedle" class="roulette-needle"></div>
+                </div>
+            </div>
+            <div id="playerInfoList" class="player-list-container w-full max-w-lg space-y-2 bg-gray-800 p-4 rounded-xl shadow-lg">
+                <!-- プレイヤー情報がここに追加される -->
+            </div>
+        </div>
+
+        <!-- 右側のゲーム操作パネル -->
+        <div class="w-full md:w-1/3 flex flex-col items-center justify-center p-4 space-y-4">
+            <div id="bettingPanel" class="w-full bg-gray-800 p-6 rounded-xl shadow-lg hidden">
+                <h2 class="text-xl font-bold mb-4" id="currentTurnName"></h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">ルーレット予数 (1~100)</label>
+                        <input type="number" id="predictNumber" min="1" max="100" class="w-full bg-gray-900 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">賭け金</label>
+                        <input type="number" id="betAmount" class="w-full bg-gray-900 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <p id="minBetInfo" class="text-sm mt-1 text-gray-400"></p>
+                    </div>
+                    <button id="nextPlayerBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-colors">次へ</button>
+                    <p id="bettingError" class="text-red-500 text-center hidden"></p>
+                </div>
+            </div>
+
+            <div id="resultPanel" class="w-full bg-gray-800 p-6 rounded-xl shadow-lg hidden">
+                <h2 class="text-xl font-bold mb-4 text-center">結果発表</h2>
+                <p class="text-center text-3xl font-bold mb-4" id="resultNumber"></p>
+                <div id="transactionList" class="space-y-2">
+                    <!-- 取引結果がここに追加される -->
+                </div>
+            </div>
+
+            <div id="longPressPanel" class="w-full bg-gray-800 p-6 rounded-xl shadow-lg text-center hidden">
+                <p class="text-lg mb-4">ルーレットを長押しして回してください</p>
+                <button id="rouletteSpinner" class="bg-red-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-red-700 transition-colors shadow-lg">回す</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果画面 -->
+    <div id="endScreen" class="hidden w-full h-full flex flex-col items-center justify-center p-4" style="opacity: 0;">
+        <h1 class="text-4xl md:text-6xl font-bold title-text mb-8 text-center">結果発表</h1>
+        <div class="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-md space-y-6">
+            <div>
+                <h2 class="text-xl font-bold mb-2 text-green-500">勝者</h2>
+                <p id="winnerName" class="text-lg"></p>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold mb-2 text-green-500">一番儲けた人</h2>
+                <p id="biggestWinnerName" class="text-lg"></p>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold mb-2 text-red-500">一番爆死した人</h2>
+                <p id="biggestLoserName" class="text-lg"></p>
+            </div>
+        </div>
+        <button id="endToHomeBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-colors mt-8">ホームに戻る</button>
+    </div>
+
+    <!-- モーダルダイアログ -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div id="modalBox" class="bg-gray-800 p-8 rounded-xl shadow-lg text-center w-full max-w-sm">
+            <p id="modalMessage" class="text-lg mb-4"></p>
+            <div id="modalButtons" class="flex justify-center space-x-4">
+                <button id="modalYesBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors hidden">はい</button>
+                <button id="modalNoBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors hidden">いいえ</button>
+                <button id="modalCloseBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors hidden">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ゲームの状態管理
+        let gameState = {
+            players: [],
+            isCpuMode: false,
+            initialMoney: 0,
+            minBet: 0,
+            rouletteCount: 0,
+            startTime: 0,
+            gameOverPlayers: [],
+            bettingData: [],
+            roundWinners: [],
+            biggestWinner: { name: "", amount: 0 },
+            biggestLoser: { name: "", amount: 0 },
+            totalRouletteCount: 0,
+        };
+
+        const elements = {
+            homeScreen: document.getElementById('homeScreen'),
+            gameScreen: document.getElementById('gameScreen'),
+            endScreen: document.getElementById('endScreen'),
+            loadingScreen: document.getElementById('loadingScreen'),
+
+            cpuModeBtn: document.getElementById('cpuModeBtn'),
+            playerModeBtn: document.getElementById('playerModeBtn'),
+            cpuOptions: document.getElementById('cpuOptions'),
+            playerOptions: document.getElementById('playerOptions'),
+            playerNameInputs: document.getElementById('playerNameInputs'),
+
+            cpuCount: document.getElementById('cpuCount'),
+            playerCount: document.getElementById('playerCount'),
+            initialMoney: document.getElementById('initialMoney'),
+            minBet: document.getElementById('minBet'),
+            startButton: document.getElementById('startButton'),
+            errorMessage: document.getElementById('errorMessage'),
+
+            backButton: document.getElementById('backButton'),
+            rouletteCountSpan: document.getElementById('rouletteCount'),
+            leaderNameSpan: document.getElementById('leaderName'),
+            gameTimerSpan: document.getElementById('gameTimer'),
+            playerInfoList: document.getElementById('playerInfoList'),
+            bettingPanel: document.getElementById('bettingPanel'),
+            currentTurnName: document.getElementById('currentTurnName'),
+            predictNumberInput: document.getElementById('predictNumber'),
+            betAmountInput: document.getElementById('betAmount'),
+            minBetInfo: document.getElementById('minBetInfo'),
+            nextPlayerBtn: document.getElementById('nextPlayerBtn'),
+            bettingError: document.getElementById('bettingError'),
+
+            resultPanel: document.getElementById('resultPanel'),
+            resultNumberDisplay: document.getElementById('resultNumber'),
+            transactionList: document.getElementById('transactionList'),
+            
+            longPressPanel: document.getElementById('longPressPanel'),
+            rouletteSpinner: document.getElementById('rouletteSpinner'),
+            
+            winnerName: document.getElementById('winnerName'),
+            biggestWinnerName: document.getElementById('biggestWinnerName'),
+            biggestLoserName: document.getElementById('biggestLoserName'),
+            endToHomeBtn: document.getElementById('endToHomeBtn'),
+
+            rouletteContainer: document.querySelector('.roulette-container'),
+            rouletteNeedle: document.getElementById('rouletteNeedle'),
+            
+            modalOverlay: document.getElementById('modalOverlay'),
+            modalMessage: document.getElementById('modalMessage'),
+            modalYesBtn: document.getElementById('modalYesBtn'),
+            modalNoBtn: document.getElementById('modalNoBtn'),
+            modalCloseBtn: document.getElementById('modalCloseBtn')
+        };
+        
+        // ローカルストレージからのデータ復元
+        const loadGameState = () => {
+            const savedState = localStorage.getItem('stkGameData');
+            if (savedState) {
+                gameState = JSON.parse(savedState);
+                return true;
+            }
+            return false;
+        };
+
+        const saveGameState = () => {
+            localStorage.setItem('stkGameData', JSON.stringify(gameState));
+        };
+
+        // UI表示の切り替え
+        const switchScreen = (screenId, transition = true) => {
+            const screens = [elements.homeScreen, elements.gameScreen, elements.endScreen];
+            screens.forEach(screen => screen.classList.add('hidden'));
+
+            if (transition) {
+                elements.loadingScreen.classList.remove('hidden');
+                setTimeout(() => {
+                    elements.loadingScreen.classList.remove('fade-out');
+                    elements.loadingScreen.classList.add('fade-in');
+                }, 0);
+                setTimeout(() => {
+                    elements.loadingScreen.classList.add('fade-in');
+                    elements.loadingScreen.classList.remove('fade-out');
+                }, 1000);
+                setTimeout(() => {
+                    elements.loadingScreen.classList.add('fade-out');
+                }, 1500);
+                setTimeout(() => {
+                    document.getElementById(screenId).classList.remove('hidden');
+                    document.getElementById(screenId).style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById(screenId).style.transition = 'opacity 1s';
+                        document.getElementById(screenId).style.opacity = '1';
+                    }, 100);
+                    elements.loadingScreen.classList.add('hidden');
+                }, 2500);
+            } else {
+                document.getElementById(screenId).classList.remove('hidden');
+            }
+        };
+
+        // ルーレットの描画
+        const drawRoulette = () => {
+            const wheel = document.querySelector('.roulette-wheel');
+            wheel.innerHTML = '';
+            const numbers = 100;
+            const angleStep = 360 / numbers;
+            for (let i = 1; i <= numbers; i++) {
+                const numberDiv = document.createElement('div');
+                numberDiv.classList.add('roulette-number');
+                numberDiv.style.transform = `rotate(${(i - 1) * angleStep + angleStep / 2}deg)`;
+                numberDiv.innerHTML = `<span>${i}</span>`;
+                wheel.appendChild(numberDiv);
+            }
+            wheel.appendChild(elements.rouletteNeedle);
+        };
+        drawRoulette();
+
+        // モード選択
+        elements.cpuModeBtn.addEventListener('click', () => {
+            elements.cpuOptions.classList.remove('hidden');
+            elements.playerOptions.classList.add('hidden');
+            gameState.isCpuMode = true;
+        });
+
+        elements.playerModeBtn.addEventListener('click', () => {
+            elements.playerOptions.classList.remove('hidden');
+            elements.cpuOptions.classList.add('hidden');
+            gameState.isCpuMode = false;
+        });
+
+        // プレイヤー人数の入力に応じて名前入力欄を生成
+        elements.playerCount.addEventListener('input', () => {
+            const count = parseInt(elements.playerCount.value);
+            elements.playerNameInputs.innerHTML = '';
+            if (count > 0 && count <= 25) {
+                for (let i = 1; i <= count; i++) {
+                    const label = document.createElement('label');
+                    label.classList.add('block', 'text-sm', 'font-bold', 'mb-1');
+                    label.textContent = `プレイヤー${i}の名前`;
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.classList.add('w-full', 'bg-gray-900', 'text-white', 'p-2', 'rounded-lg', 'focus:outline-none', 'focus:ring-2', 'focus:ring-green-500');
+                    input.placeholder = `プレイヤー${i}の名前を入力`;
+                    input.dataset.playerIndex = i - 1;
+                    elements.playerNameInputs.appendChild(label);
+                    elements.playerNameInputs.appendChild(input);
+                }
+            }
+        });
+
+        // プレイヤーデータ生成
+        const createPlayers = () => {
+            const initialMoney = parseInt(elements.initialMoney.value);
+            gameState.players = [];
+
+            if (gameState.isCpuMode) {
+                const numPlayers = parseInt(elements.cpuCount.value);
+                const playerName = document.querySelector('#homeScreen input[placeholder="名前を入力"]').value.trim() || "プレイヤー";
+                gameState.players.push({
+                    name: playerName,
+                    money: initialMoney,
+                    isCPU: false,
+                    initialMoney: initialMoney,
+                    biggestGain: 0,
+                    biggestLoss: 0,
+                });
+                for (let i = 1; i < numPlayers; i++) {
+                    gameState.players.push({
+                        name: `CPU${i}`,
+                        money: initialMoney,
+                        isCPU: true,
+                        initialMoney: initialMoney,
+                        biggestGain: 0,
+                        biggestLoss: 0,
+                    });
+                }
+            } else {
+                const nameInputs = elements.playerNameInputs.querySelectorAll('input');
+                nameInputs.forEach((input, index) => {
+                    const name = input.value.trim() || `プレイヤー${index + 1}`;
+                    gameState.players.push({
+                        name: name,
+                        money: initialMoney,
+                        isCPU: false,
+                        initialMoney: initialMoney,
+                        biggestGain: 0,
+                        biggestLoss: 0,
+                    });
+                });
+            }
+            updatePlayerInfo();
+            gameState.totalRouletteCount = Math.floor(25 * (gameState.players.length - 2)) + 50;
+        };
+
+        // プレイヤー情報表示の更新
+        const updatePlayerInfo = () => {
+            elements.playerInfoList.innerHTML = '';
+            gameState.players.forEach(player => {
+                const div = document.createElement('div');
+                div.classList.add('bg-gray-700', 'p-3', 'rounded-lg', 'shadow');
+                div.innerHTML = `
+                    <p class="font-bold text-lg">${player.name}</p>
+                    <p class="text-gray-400">所持金: <span class="text-white">${player.money.toLocaleString()}円</span></p>
+                    <p class="text-sm mt-1" id="status-${player.name.replace(/\s/g, '-')}" style="color:red;"></p>
+                `;
+                elements.playerInfoList.appendChild(div);
+
+                if (player.money <= 0 || player.money < gameState.minBet) {
+                    player.isGameOver = true;
+                    document.getElementById(`status-${player.name.replace(/\s/g, '-')}`).innerText = "GAME OVER";
+                }
+            });
+            updateLeaderboard();
+        };
+
+        const updateLeaderboard = () => {
+            const activePlayers = gameState.players.filter(p => !p.isGameOver);
+            if (activePlayers.length > 0) {
+                activePlayers.sort((a, b) => b.money - a.money);
+                elements.leaderNameSpan.textContent = `リーダー: ${activePlayers[0].name}`;
+            } else {
+                elements.leaderNameSpan.textContent = `リーダー: -`;
+            }
+        };
+
+        // スタートボタン処理
+        elements.startButton.addEventListener('click', () => {
+            const initialMoney = parseInt(elements.initialMoney.value);
+            const minBet = parseInt(elements.minBet.value);
+            let numPlayers;
+            if (gameState.isCpuMode) {
+                numPlayers = parseInt(elements.cpuCount.value);
+            } else {
+                numPlayers = parseInt(elements.playerCount.value);
+            }
+
+            if (isNaN(initialMoney) || initialMoney < 10000 || initialMoney > 1000000000000 ||
+                isNaN(minBet) || minBet < 1 ||
+                isNaN(numPlayers) || (gameState.isCpuMode && (numPlayers < 2 || numPlayers > 100)) || (!gameState.isCpuMode && (numPlayers < 2 || numPlayers > 25))) {
+                elements.errorMessage.classList.remove('hidden');
+                elements.errorMessage.textContent = "正しく選択、もしくは入力されていないものがあります。もう一度確かめた上、もう一度スタートしてください。";
+                return;
+            }
+
+            elements.errorMessage.classList.add('hidden');
+            gameState.initialMoney = initialMoney;
+            gameState.minBet = minBet;
+            
+            createPlayers();
+            saveGameState();
+            switchScreen('gameScreen');
+
+            setTimeout(() => {
+                showModal("ルールを説明しますか？", "yesno", () => {
+                    showRules();
+                }, () => {
+                    startGame();
+                });
+            }, 2500);
+        });
+
+        // ルール説明
+        const showRules = () => {
+            const rules = `
+                ゲームの目的は、ルーレットで出た数字を予想し、賭け金を増やしていくことです。
+                <br><br>
+                1. プレイヤー全員が「予数」(1〜100)と「賭け金」を設定します。賭け金は最低賭け金以上でなければいけません。
+                <br>
+                2. 全員の設定が終わったら、ルーレットを長押しして回します。ルーレットは離した瞬間に止まります。
+                <br>
+                3. ルーレットで出た数字を「出数」とします。
+                <br><br>
+                <b>賞金の分配ルール:</b>
+                <br>
+                - <b>予数と出数が完全に一致した場合:</b> そのプレイヤーは、他の全プレイヤーが賭けた金額を総取りします。複数人いた場合は、賭け金の割合に応じて山分けします。
+                <br>
+                - <b>完全一致したプレイヤーがいない場合:</b>
+                <br>
+                &nbsp;&nbsp;・出数が奇数: 予数が奇数のプレイヤーが、偶数のプレイヤーから賭け金を総取り（または山分け）。
+                <br>
+                &nbsp;&nbsp;・出数が偶数: 予数が偶数のプレイヤーが、奇数のプレイヤーから賭け金を総取り（または山分け）。
+                <br>
+                - <b>全員の予数が同じ偶奇で、出数が逆の偶奇だった場合:</b> 出数に最も近い予数を選んだプレイヤーが、他のプレイヤーから賭け金を総取り（または山分け）。
+                <br><br>
+                所持金が最低賭け金以下になったり、破産したプレイヤーはゲームオーバーとなります。
+                <br><br>
+                <b>勝利条件:</b>
+                <br>
+                - プレイヤーが残り1人になったらゲーム終了。
+                <br>
+                - プレイヤー2人ならルーレット50回、3人なら75回...のように、人数に応じて決まった回数を回したら終了。
+                <br><br>
+                それでは、健闘を祈ります！
+            `;
+            showModal(rules, "close", startGame);
+        };
+
+        // モーダル表示
+        const showModal = (message, type, onYes = () => {}, onNo = () => {}) => {
+            elements.modalMessage.innerHTML = message;
+            elements.modalOverlay.classList.remove('hidden');
+            elements.modalYesBtn.classList.add('hidden');
+            elements.modalNoBtn.classList.add('hidden');
+            elements.modalCloseBtn.classList.add('hidden');
+            
+            if (type === "yesno") {
+                elements.modalYesBtn.classList.remove('hidden');
+                elements.modalNoBtn.classList.remove('hidden');
+                elements.modalYesBtn.onclick = () => { elements.modalOverlay.classList.add('hidden'); onYes(); };
+                elements.modalNoBtn.onclick = () => { elements.modalOverlay.classList.add('hidden'); onNo(); };
+            } else if (type === "close") {
+                elements.modalCloseBtn.classList.remove('hidden');
+                elements.modalCloseBtn.onclick = () => { elements.modalOverlay.classList.add('hidden'); onYes(); };
+            }
+        };
+
+        // ゲーム開始
+        let currentTurn = 0;
+        let gameTimerInterval = null;
+        const startGame = () => {
+            gameState.startTime = Date.now();
+            gameTimerInterval = setInterval(updateTimer, 1000);
+            elements.backButton.classList.remove('hidden');
+            startBettingPhase();
+        };
+
+        // タイマー更新
+        const updateTimer = () => {
+            const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+            const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const seconds = String(elapsed % 60).padStart(2, '0');
+            elements.gameTimerSpan.textContent = `時間: ${minutes}:${seconds}`;
+        };
+
+        // 賭けフェーズ開始
+        const startBettingPhase = () => {
+            gameState.bettingData = [];
+            currentTurn = 0;
+            elements.resultPanel.classList.add('hidden');
+            elements.longPressPanel.classList.add('hidden');
+            elements.bettingPanel.classList.remove('hidden');
+            
+            // ゲームオーバーのプレイヤーをフィルター
+            const activePlayers = gameState.players.filter(p => !p.isGameOver);
+            gameState.players = activePlayers;
+
+            if (gameState.players.length <= 1 || gameState.rouletteCount >= gameState.totalRouletteCount) {
+                 endGame();
+                 return;
+            }
+
+            // CPUの賭け設定
+            gameState.players.forEach(player => {
+                if (player.isCPU) {
+                    const minBet = Math.ceil(player.money * 0.01);
+                    const bet = Math.floor(Math.random() * (player.money - minBet)) + minBet;
+                    const predict = Math.floor(Math.random() * 100) + 1;
+                    gameState.bettingData.push({
+                        name: player.name,
+                        predictNumber: predict,
+                        betAmount: bet,
+                        moneyBefore: player.money,
+                    });
+                }
+            });
+            
+            // 最初のプレイヤーの賭け設定画面を表示
+            showPlayerBetting();
+        };
+
+        // プレイヤーの賭け設定画面表示
+        const showPlayerBetting = () => {
+            if (currentTurn >= gameState.players.length) {
+                // 全員の賭け設定が完了
+                showAllBets();
+                return;
+            }
+
+            const currentPlayer = gameState.players[currentTurn];
+            if (currentPlayer.isCPU) {
+                currentTurn++;
+                showPlayerBetting();
+                return;
+            }
+
+            const minBetForPlayer = Math.ceil(currentPlayer.money * 0.01);
+            elements.currentTurnName.textContent = `${currentPlayer.name}さんのターン`;
+            elements.minBetInfo.textContent = `最低賭け金: ${minBetForPlayer.toLocaleString()}円`;
+            elements.bettingError.classList.add('hidden');
+            elements.predictNumberInput.value = '';
+            elements.betAmountInput.value = '';
+
+            elements.nextPlayerBtn.onclick = () => {
+                const predict = parseInt(elements.predictNumberInput.value);
+                const bet = parseInt(elements.betAmountInput.value);
+
+                if (isNaN(predict) || predict < 1 || predict > 100 || isNaN(bet) || bet < minBetForPlayer || bet > currentPlayer.money) {
+                    elements.bettingError.classList.remove('hidden');
+                    elements.bettingError.textContent = "正規の設定をしてください";
+                    return;
+                }
+
+                gameState.bettingData.push({
+                    name: currentPlayer.name,
+                    predictNumber: predict,
+                    betAmount: bet,
+                    moneyBefore: currentPlayer.money,
+                });
+                
+                currentTurn++;
+                showPlayerBetting();
+            };
+        };
+
+        // 全員の賭け金表示
+        const showAllBets = () => {
+            elements.bettingPanel.classList.add('hidden');
+            elements.longPressPanel.classList.remove('hidden');
+            const resultList = document.createElement('div');
+            resultList.classList.add('player-list-container', 'w-full', 'space-y-2');
+            
+            gameState.bettingData.forEach(bet => {
+                const div = document.createElement('div');
+                div.classList.add('bg-gray-700', 'p-3', 'rounded-lg', 'shadow');
+                div.innerHTML = `
+                    <p class="font-bold">${bet.name}</p>
+                    <p>賭け金: ${bet.betAmount.toLocaleString()}円</p>
+                    <p>予数: ${bet.predictNumber}</p>
+                `;
+                resultList.appendChild(div);
+            });
+            elements.longPressPanel.prepend(resultList);
+        };
+
+        // ルーレットの回転と停止
+        let longPressTimer = null;
+        let isSpinning = false;
+        elements.rouletteSpinner.addEventListener('mousedown', startSpin);
+        elements.rouletteSpinner.addEventListener('touchstart', startSpin);
+
+        elements.rouletteSpinner.addEventListener('mouseup', stopSpin);
+        elements.rouletteSpinner.addEventListener('touchend', stopSpin);
+
+        function startSpin(e) {
+            e.preventDefault();
+            if (isSpinning) return;
+            isSpinning = true;
+            elements.rouletteContainer.style.transition = 'transform 1s ease-in-out';
+            elements.rouletteContainer.style.transform = `rotate(360deg)`;
+            longPressTimer = setTimeout(() => {
+                elements.rouletteContainer.style.transition = 'transform 1s linear';
+                elements.rouletteContainer.style.transform = `rotate(3600deg)`;
+            }, 1000);
+        }
+        
+        function stopSpin() {
+            if (!isSpinning) return;
+            clearTimeout(longPressTimer);
+            isSpinning = false;
+            elements.rouletteContainer.style.transition = 'transform 0.5s ease-out';
+            const finalAngle = Math.random() * 360;
+            elements.rouletteContainer.style.transform = `rotate(${finalAngle}deg)`;
+            const resultNumber = 100 - Math.floor(finalAngle / 3.6);
+            
+            setTimeout(() => {
+                calculateResults(resultNumber);
+            }, 1000);
+        }
+
+        // 結果計算
+        const calculateResults = (resultNumber) => {
+            elements.longPressPanel.classList.add('hidden');
+            elements.resultPanel.classList.remove('hidden');
+            elements.resultNumberDisplay.textContent = `出数: ${resultNumber}`;
+            
+            let totalPot = 0;
+            const winners = [];
+            const oddEvenWinners = { odd: [], even: [] };
+
+            gameState.bettingData.forEach(bet => {
+                totalPot += bet.betAmount;
+                if (bet.predictNumber === resultNumber) {
+                    winners.push(bet);
+                }
+                if (bet.predictNumber % 2 !== 0 && resultNumber % 2 !== 0) {
+                    oddEvenWinners.odd.push(bet);
+                }
+                if (bet.predictNumber % 2 === 0 && resultNumber % 2 === 0) {
+                    oddEvenWinners.even.push(bet);
+                }
+            });
+
+            let finalWinners = [];
+            if (winners.length > 0) {
+                finalWinners = winners;
+            } else if (oddEvenWinners.odd.length > 0 && resultNumber % 2 !== 0) {
+                finalWinners = oddEvenWinners.odd;
+            } else if (oddEvenWinners.even.length > 0 && resultNumber % 2 === 0) {
+                finalWinners = oddEvenWinners.even;
+            } else {
+                // 出数に最も近い予数
+                let closest = 101;
+                let closestBet = null;
+                gameState.bettingData.forEach(bet => {
+                    const distance = Math.abs(bet.predictNumber - resultNumber);
+                    if (distance < closest) {
+                        closest = distance;
+                        finalWinners = [bet];
+                    } else if (distance === closest) {
+                        finalWinners.push(bet);
+                    }
+                });
+            }
+
+            // 賞金分配
+            const totalWinnerBet = finalWinners.reduce((sum, winner) => sum + winner.betAmount, 0);
+            const transactions = [];
+
+            gameState.players.forEach(player => {
+                const bet = gameState.bettingData.find(b => b.name === player.name);
+                if (!bet) return;
+                
+                let change = -bet.betAmount;
+                const isWinner = finalWinners.some(w => w.name === player.name);
+                
+                if (isWinner) {
+                    const winnerShare = totalPot * (bet.betAmount / totalWinnerBet);
+                    change = winnerShare - bet.betAmount;
+                } else {
+                    // 敗者は賭け金を失う
+                }
+
+                player.money += change;
+                transactions.push({ name: player.name, change: change, currentMoney: player.money });
+                
+                // 最大収益/損失を更新
+                if (change > player.biggestGain) player.biggestGain = change;
+                if (change < player.biggestLoss) player.biggestLoss = change;
+            });
+
+            // 結果の表示
+            displayTransactions(transactions);
+            gameState.rouletteCount++;
+            elements.rouletteCountSpan.textContent = `ルーレット回数: ${gameState.rouletteCount}`;
+            updatePlayerInfo();
+            saveGameState();
+            
+            setTimeout(startBettingPhase, 5000);
+        };
+
+        // 取引結果表示
+        const displayTransactions = (transactions) => {
+            elements.transactionList.innerHTML = '';
+            transactions.sort((a, b) => b.change - a.change); // 儲けが多い順にソート
+
+            transactions.forEach(t => {
+                const div = document.createElement('div');
+                div.classList.add('bg-gray-700', 'p-3', 'rounded-lg', 'shadow');
+                const sign = t.change >= 0 ? '+' : '';
+                const color = t.change >= 0 ? 'text-green-500' : 'text-red-500';
+                div.innerHTML = `
+                    <p class="font-bold">${t.name}</p>
+                    <p class="${color}">金額: ${sign}${t.change.toLocaleString()}円</p>
+                    <p class="text-gray-400">所持金: <span class="text-white">${t.currentMoney.toLocaleString()}円</span></p>
+                `;
+                elements.transactionList.appendChild(div);
+            });
+        };
+
+        // ゲーム終了
+        const endGame = () => {
+            clearInterval(gameTimerInterval);
+            let winner = gameState.players.find(p => !p.isGameOver);
+            if (!winner && gameState.players.length > 0) {
+                 winner = gameState.players.sort((a, b) => b.money - a.money)[0];
+            } else if (!winner) {
+                 winner = { name: "勝者なし" };
+            }
+            
+            const allPlayers = JSON.parse(localStorage.getItem('stkGameData')).players;
+            allPlayers.sort((a, b) => b.biggestGain - a.biggestGain);
+            const biggestWinner = allPlayers[0];
+
+            allPlayers.sort((a, b) => a.biggestLoss - b.biggestLoss);
+            const biggestLoser = allPlayers[0];
+
+            elements.winnerName.textContent = winner ? winner.name : "不明";
+            elements.biggestWinnerName.textContent = biggestWinner ? `${biggestWinner.name} (${biggestWinner.biggestGain.toLocaleString()}円)` : "不明";
+            elements.biggestLoserName.textContent = biggestLoser ? `${biggestLoser.name} (${biggestLoser.biggestLoss.toLocaleString()}円)` : "不明";
+
+            localStorage.removeItem('stkGameData');
+            switchScreen('endScreen');
+        };
+
+        // 戻るボタン
+        elements.backButton.addEventListener('click', () => {
+            showModal("本当にホーム画面に戻りますか？ゲームデータは保存されます。", "yesno", () => {
+                 saveGameState();
+                 clearInterval(gameTimerInterval);
+                 location.reload();
+            });
+        });
+
+        elements.endToHomeBtn.addEventListener('click', () => {
+             location.reload();
+        });
+
+        // ページ読み込み時の処理
+        window.onload = () => {
+             elements.loadingScreen.classList.remove('hidden');
+             setTimeout(() => {
+                 elements.loadingScreen.classList.add('fade-out');
+             }, 1000);
+             setTimeout(() => {
+                 elements.loadingScreen.classList.add('hidden');
+                 if (loadGameState()) {
+                     showModal("前回のゲームデータがあります。続きから始めますか？", "yesno", () => {
+                         switchScreen('gameScreen', false);
+                         startGame();
+                     }, () => {
+                         localStorage.removeItem('stkGameData');
+                     });
+                 }
+             }, 2000);
+        };
+
+    </script>
+</body>
+</html>
